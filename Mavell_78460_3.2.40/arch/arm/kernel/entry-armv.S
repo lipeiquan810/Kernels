@@ -1012,7 +1012,7 @@ __kuser_helper_end:
  THUMB(	.thumb	)
 
 /*
- * Vector stubs.
+ * Vector stubs.  !!!!!! 这个地方的注释值得参考 !!!!!
  *
  * This code is copied to 0xffff0200 so we can use branches in the
  * vectors, rather than ldr's.  Note that this code must not
@@ -1020,6 +1020,7 @@ __kuser_helper_end:
  *
  * Common stub entry macro:
  *   Enter in IRQ mode, spsr = SVC/USR CPSR, lr = SVC/USR PC
+ *   /* 进入IRQ模式后，spsr是发生irq中断之前那个模式的cpsr， lr是之前模式的pc */
  *
  * SP points to a minimal amount of processor-private memory, the address
  * of which is copied into r0 for the mode specific abort handler.
@@ -1030,11 +1031,13 @@ __kuser_helper_end:
 vector_\name:
 	.if \correction
 	sub	lr, lr, #\correction
+	/*  */
 	.endif
 
 	@
-	@ Save r0, lr_<exception> (parent PC) and spsr_<exception>
-	@ (parent CPSR)
+	@ Save r0, lr_<exception> and spsr_<exception>
+	@ lr_<exception>: (parent PC)
+	@ spsr_<exception>: (parent CPSR)
 	@
 	stmia	sp, {r0, lr}		@ save r0, lr
 	mrs	lr, spsr
@@ -1068,7 +1071,7 @@ __stubs_start:
 /*
  * Interrupt dispatcher
  */
-	vector_stub	irq, IRQ_MODE, 4
+	vector_stub	irq, IRQ_MODE, 4  /* vector_stub是一个宏，line 1027 */
 
 	.long	__irq_usr			@  0  (USR_26 / USR_32)
 	.long	__irq_invalid			@  1  (FIQ_26 / FIQ_32)
@@ -1195,6 +1198,14 @@ vector_addrexcptn:
 __stubs_end:
 
 	.equ	stubs_offset, __vectors_start + 0x200 - __stubs_start
+	/* 异常处理的代码分两部分：
+	   1. 8条跳转语句，放在__vectors_start开始的地方
+	   2. 异常处理函数，放在__stubs_start开始的地方
+	   
+	   为什么在计算stubs_offset时要有个0x200的偏移呢？
+	   这是因为内核启动的时候会进行异常处理代码的搬移，__vectors_start开始的代码会搬移到0xFFFF0000开始的地方
+	   而__stubs_start开始的代码会被搬移到0xFFFF0200开始的地方
+	*/
 
 	.globl	__vectors_start
 __vectors_start:
@@ -1204,7 +1215,7 @@ __vectors_start:
 	W(b)	vector_und + stubs_offset
 	W(ldr)	pc, .LCvswi + stubs_offset
 	W(b)	vector_pabt + stubs_offset
-	W(b)	vector_dabt + stubs_offset
+	W(b)	vector_dabt + stubs_offset  /*  */
 	W(b)	vector_addrexcptn + stubs_offset
 	W(b)	vector_irq + stubs_offset
 	W(b)	vector_fiq + stubs_offset
